@@ -50,6 +50,7 @@ import { DictationService } from './dictation/dictation';
 import { createWhisperTranscriber, findWhisper } from './dictation/whisper';
 import { DeliveryIndex } from './deliveries/deliveries';
 import { FileFetcher } from './deliveries/fetcher';
+import { StaffManager } from './staff/manager';
 import { WorldClient } from './world/client';
 import { createWorldRoutes } from './world/http';
 import { WorldService } from './world/service';
@@ -60,6 +61,8 @@ import { BuildingUplink } from './world/uplink';
 import { WorldViewer } from './world/viewer';
 
 const config = loadConfig();
+const staff = new StaffManager(join(config.dataDir, 'staff', 'orders.json'));
+await staff.load();
 const startedAt = Date.now();
 
 // Nome antigo (CodeTown, até a 0.3.2): leva ~/.codetown para ~/.habblaud antes de ler qualquer estado e avisa
@@ -348,6 +351,7 @@ const api = createApiHandler({
   },
   office,
   hub,
+  staff,
   accounts,
   sources: () => agents.sources(),
   version: config.version,
@@ -546,6 +550,7 @@ function shutdown(signal: string): void {
   log.info(tr('Encerrando ({0})…', [signal]));
   clearInterval(ticker);
   stats.stop();
+  // Ordens e conversas da equipe são persistidas a cada atualização.
   agents.stop();
   accounts.stop();
   hub.stop();
