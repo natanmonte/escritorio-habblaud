@@ -17,7 +17,7 @@ export default defineConfig({
     // para client/public (nomes fixos, revalidados a cada acesso). Ver server/http/static.ts.
     assetsDir: 'bundle',
     assetsInlineLimit: 0,
-    rollupOptions: { input: { main: r('./client/index.html'), staff: r('./client/staff.html') } },
+    rollupOptions: { input: { main: r('./client/index.html') } },
   },
   server: {
     port: Number(process.env.VITE_PORT ?? 5173),
