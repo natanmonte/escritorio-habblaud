@@ -22,6 +22,7 @@ import { AUDIO_BODY_MAX, type DictationService } from '../dictation/dictation';
 import type { DeliveryIndex } from '../deliveries/deliveries';
 import type { FileFetcher } from '../deliveries/fetcher';
 import { HOST_WAIT_MS } from '../host-wait';
+import type { StaffManager } from '../staff/manager';
 
 export interface ApiDeps {
   office: Office;
@@ -643,6 +644,27 @@ export function createApiHandler(deps: ApiDeps): (req: IncomingMessage, res: Ser
       } else {
         deps.messages(req, res, path);
       }
+      return true;
+    }
+    if (path === '/api/workspace/orders' || path.startsWith('/api/workspace/orders/')) {
+      const staff = deps.staff;
+      if (!staff) sendJson(res, 503, { error: 'Gerente de equipe indisponível.' });
+      else if (isRemote(req) && !trusted(req)) sendJson(res, 403, { error: 'Acesso remoto não autorizado.' });
+      else if (path === '/api/workspace/orders' && isRead) sendJson(res, 200, { orders: staff.list(), configured: !!(process.env.HABBLAUD_AI_API_KEY || process.env.OPENAI_API_KEY) });
+      else if (path === '/api/workspace/orders' && method === 'POST') {
+        readJson(req).then(async body => {
+          const instruction = (body as { instruction?: unknown })?.instruction;
+          if (typeof instruction !== 'string') throw new HttpError(400, 'Informe instruction como texto.');
+          const order = await staff.submit(instruction);
+          sendJson(res, 202, { order });
+        }).catch(err => fail(res, err));
+      } else if (path.startsWith('/api/workspace/orders/') && isRead) {
+        let id: string;
+        try { id = decodeURIComponent(path.slice('/api/workspace/orders/'.length)); }
+        catch { sendJson(res, 400, { error: 'ID inválido.' }); return true; }
+        const order = staff.get(id);
+        if (order) sendJson(res, 200, { order }); else sendJson(res, 404, { error: 'Ordem não encontrada.' });
+      } else methodNotAllowed(res, path === '/api/workspace/orders' ? 'GET, POST' : 'GET');
       return true;
     }
     if (path.startsWith('/api/agents/')) {
