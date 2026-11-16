@@ -27,6 +27,7 @@ import type { StaffManager } from '../staff/manager';
 export interface ApiDeps {
   office: Office;
   hub: Hub;
+  staff?: StaffManager;
   accounts: AccountsService;
   sources: () => SourceInfo[];
   version: string;
