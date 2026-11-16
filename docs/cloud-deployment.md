@@ -39,6 +39,9 @@ Para o modo remoto completo, use uma VM Linux ou VPS com Docker. O computador pe
 - HABBLAUD_HOST=0.0.0.0: necessário dentro do container.
 - HABBLAUD_IN_DOCKER=1: informa que o processo está em container.
 - HABBLAUD_DATA_DIR=/data: estado persistente.
+- HABBLAUD_AI_API_KEY: chave do provedor compatível com a API OpenAI para o gerente e a equipe.
+- HABBLAUD_AI_BASE_URL: opcional; endpoint compatível com `/v1` (padrão: API da OpenAI).
+- HABBLAUD_AI_MODEL: opcional; modelo usado pela equipe (padrão: `gpt-4.1-mini`).
 - HABBLAUD_ALLOWED_HOSTS: hosts públicos autorizados, se aplicável.
 - HABBLAUD_TERMINAL=0 e HABBLAUD_MENSAGENS=0: mantenha recursos de terminal/mensagens desligados enquanto a arquitetura de autenticação remota não for revisada para o seu cenário.
 
@@ -48,6 +51,8 @@ Os transcripts podem conter informações confidenciais, comandos e trechos de c
 
 A imagem Docker e a documentação deixam o projeto pronto para ser instalado em uma VM quando houver uma. Isso não cria uma VM gratuita automaticamente. Oracle Cloud Always Free pode ser tentada quando houver capacidade, mas disponibilidade, limites e elegibilidade dependem da conta e da região.
 
-## Limite funcional importante
+## Equipe de trabalho integrada
 
-O Habblaud acompanha agentes Claude Code/Codex que executam no servidor. Ele não transforma, sozinho, personagens em funcionários autônomos nem inclui um gerente que recebe uma ordem em linguagem natural e distribui trabalho. Essa camada de orquestração é uma etapa separada de desenvolvimento e também depende de acesso aos modelos de IA.
+O fork inclui um gerente (Theo) e especialistas (Nina, Maya, Luca e Íris). O botão **Equipe** aparece dentro da interface original do escritório. As ordens são persistidas em `/data/staff/orders.json`, distribuídas em tarefas sequenciais, e a interface acompanha estados, mensagens e entregas. É necessário configurar `HABBLAUD_AI_API_KEY` (ou `OPENAI_API_KEY`) no servidor. Sem a chave, a equipe informa que está indisponível e as tarefas não são simuladas como concluídas.
+
+Essa equipe de IA é separada dos agentes Claude Code/Codex que aparecem no mapa original. Ela ainda não controla os personagens/sessões reais do Habblaud, não executa ações externas por conta própria e não tem navegação web ou execução de código. O painel mostra as conversas e o estado verdadeiro das tarefas dessa camada; não altera artificialmente o status dos personagens do escritório.
