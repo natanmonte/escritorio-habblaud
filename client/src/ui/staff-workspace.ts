@@ -299,8 +299,13 @@ export class StaffWorkspace implements UiComponent {
         if (task.error) line.append(node('p', 'staff-task__error', task.error));
         if (task.result) {
           const details=node('details');details.append(node('summary','','Ver entrega'));
-          const htmlBlock=task.result.match(/```(?:html)?\\s*([\\s\\S]*?)```/i);
-          const rawHtml=htmlBlock?.[1]?.trim()||task.result.match(/<!doctype html[\\s\\S]*?<\\/html>/i)?.[0]||task.result.match(/<html[\\s\\S]*?<\\/html>/i)?.[0];
+          const lowerResult=task.result.toLowerCase();
+          const fenceStart=lowerResult.indexOf('```html');
+          const htmlStart=lowerResult.indexOf('<!doctype html')>=0?lowerResult.indexOf('<!doctype html'):lowerResult.indexOf('<html');
+          const htmlEnd=lowerResult.lastIndexOf('</html>')+7;
+          let rawHtml='';
+          if(fenceStart>=0){const bodyStart=task.result.indexOf('\n',fenceStart)+1;const fenceEnd=task.result.indexOf('```',bodyStart);if(fenceEnd>bodyStart)rawHtml=task.result.slice(bodyStart,fenceEnd).trim();}
+          else if(htmlStart>=0&&htmlEnd>htmlStart)rawHtml=task.result.slice(htmlStart,htmlEnd).trim();
           if(rawHtml){
             const tools=node('div','staff-deliverable-actions');
             const preview=this.action('Visualizar página',()=>{const url=URL.createObjectURL(new Blob([rawHtml],{type:'text/html;charset=utf-8'}));window.open(url,'_blank','noopener');window.setTimeout(()=>URL.revokeObjectURL(url),60000);},'primary');
