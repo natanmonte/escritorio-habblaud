@@ -29,8 +29,6 @@ export class StaffWorkspace implements UiComponent {
   private management: HTMLElement;
   private currentTab = 'orders';
   private authMode = false;
-  private management: HTMLElement;
-  private currentTab = 'orders';
   constructor() {
     this.button = node('button', 'ui-btn-staff', 'Equipe'); this.button.type = 'button'; this.button.title = 'Abrir equipe de trabalho';
     this.button.addEventListener('click', () => { this.open = !this.open; this.el.hidden = !this.open; if (this.open) void this.enter(); });
@@ -53,6 +51,12 @@ export class StaffWorkspace implements UiComponent {
     this.management=node('div','staff-workspace__management');
     this.list = node('div', 'staff-workspace__orders'); this.el.append(header, nav, this.notice, composer, this.list, this.management);
     window.setInterval(() => { if (this.open && !this.authMode && localStorage.getItem('pixello-office-token')) void this.refresh(); }, 2500);
+    // Primeiro acesso: abre diretamente o cadastro do administrador, sem exigir um clique no botão Equipe.
+    if (!localStorage.getItem('pixello-office-token')) {
+      this.open = true;
+      this.el.hidden = false;
+      void this.enter();
+    }
   }
   render(): void { this.button.setAttribute('aria-expanded', String(this.open)); }
   private async api(path:string,method='GET',body?:unknown):Promise<any>{
