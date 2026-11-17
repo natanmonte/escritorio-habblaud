@@ -256,7 +256,18 @@ export class StaffWorkspace implements UiComponent {
         const line = node('div', 'staff-task');
         line.append(node('strong', '', ROLE[task.role] || task.role), node('span', '', task.title), node('span', 'staff-task__status', STATUS[task.status] || task.status));
         if (task.error) line.append(node('p', 'staff-task__error', task.error));
-        if (task.result) { const details = node('details'); details.append(node('summary', '', 'Ver entrega'), node('p', '', task.result)); line.append(details); }
+        if (task.result) {
+          const details=node('details');details.append(node('summary','','Ver entrega'));
+          const htmlBlock=task.result.match(/```(?:html)?\\s*([\\s\\S]*?)```/i);
+          const rawHtml=htmlBlock?.[1]?.trim()||task.result.match(/<!doctype html[\\s\\S]*?<\\/html>/i)?.[0]||task.result.match(/<html[\\s\\S]*?<\\/html>/i)?.[0];
+          if(rawHtml){
+            const tools=node('div','staff-deliverable-actions');
+            const preview=this.action('Visualizar página',()=>{const url=URL.createObjectURL(new Blob([rawHtml],{type:'text/html;charset=utf-8'}));window.open(url,'_blank','noopener');window.setTimeout(()=>URL.revokeObjectURL(url),60000);},'primary');
+            const download=this.action('Baixar HTML',()=>{const blob=new Blob([rawHtml],{type:'text/html;charset=utf-8'});const url=URL.createObjectURL(blob);const a=node('a') as HTMLAnchorElement;a.href=url;a.download='pagina-vendas.html';document.body.append(a);a.click();a.remove();window.setTimeout(()=>URL.revokeObjectURL(url),60000);});
+            tools.append(preview,download);details.append(tools);
+          }
+          const result=node('pre','staff-task__result');result.textContent=task.result;details.append(result);line.append(details);
+        }
         tasks.append(line);
       }
       card.append(tasks);
