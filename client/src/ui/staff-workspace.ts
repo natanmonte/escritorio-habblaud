@@ -48,7 +48,7 @@ export class StaffWorkspace implements UiComponent {
     const send = node('button', 'staff-workspace__send', 'Enviar ordem'); send.type = 'submit';
     composer.append(this.assignee, this.input, send); composer.addEventListener('submit', e => { e.preventDefault(); void this.submit(); });
     const nav = node('nav', 'staff-workspace__nav');
-    for (const [id,label] of [['orders','Ordens'],['team','Equipe'],['training','Treinamento'],['company','Empresa']] as const) {
+    for (const [id,label] of [['orders','Ordens'],['files','Arquivos'],['team','Equipe'],['training','Treinamento'],['company','Empresa']] as const) {
       const tab=node('button','staff-workspace__tab',label); tab.type='button';
       tab.addEventListener('click',()=>{this.currentTab=id;this.renderTab();});
       nav.append(tab);
@@ -107,7 +107,7 @@ export class StaffWorkspace implements UiComponent {
     const orders=this.currentTab==='orders';
     this.notice.hidden=!orders; this.input.closest('form')!.hidden=!orders; this.list.hidden=!orders;
     this.management.hidden=orders;
-    const labels:Record<string,string>={orders:'Ordens',team:'Equipe',training:'Treinamento',company:'Empresa'};
+    const labels:Record<string,string>={orders:'Ordens',files:'Arquivos',team:'Equipe',training:'Treinamento',company:'Empresa'};
     this.el.querySelectorAll<HTMLButtonElement>('.staff-workspace__tab').forEach(b=>b.classList.toggle('is-active',b.textContent===labels[this.currentTab]));
     if(!orders && this.management.dataset.tab!==this.currentTab){this.management.dataset.tab=this.currentTab;void this.loadManagement();}
   }
@@ -122,10 +122,36 @@ export class StaffWorkspace implements UiComponent {
   private async loadManagement():Promise<void>{
     this.management.replaceChildren(node('p','staff-workspace__empty','Carregando...'));
     try{
-      if(this.currentTab==='team') await this.renderTeam();
+      if(this.currentTab==='files') await this.renderFiles();
+      else if(this.currentTab==='team') await this.renderTeam();
       else if(this.currentTab==='training') await this.renderTraining();
       else if(this.currentTab==='company') await this.renderCompany();
     }catch(e){this.management.replaceChildren(node('p','staff-task__error',e instanceof Error?e.message:String(e)));}
+  }
+  private async renderFiles():Promise<void>{
+    const files=await this.api('/api/files') as any[];
+    const wrap=node('div','staff-management');
+    wrap.append(node('h3','','Arquivos do escritório'),node('p','staff-help','Páginas, códigos e documentos gerados pelos funcionários ficam salvos na nuvem da Pixello. Você pode visualizar ou baixar cada entrega.'));
+    if(!files.length) wrap.append(node('p','staff-workspace__empty','Nenhum arquivo salvo ainda. Quando Julio concluir uma página ou outro funcionário gerar um arquivo, ele aparecerá aqui.'));
+    for(const file of files){
+      const card=node('section','staff-person');
+      const top=node('div','staff-person__top');
+      top.append(node('strong','',file.name),node('span','',Math.max(1,Math.round((file.size||0)/1024))+' KB'));
+      card.append(top,node('p','staff-help',(file.content_type||'Arquivo')+' · '+new Date(file.created_at).toLocaleString('pt-BR')));
+      const actions=node('div','staff-deliverable-actions');
+      actions.append(this.action('Visualizar',async()=>{await this.openOfficeFile(file.id,true);},'primary'));
+      actions.append(this.action('Baixar arquivo',async()=>{await this.openOfficeFile(file.id,false);}));
+      card.append(actions);wrap.append(card);
+    }
+    this.management.replaceChildren(wrap);
+  }
+  private async openOfficeFile(fileId:string,preview:boolean):Promise<void>{
+    const token=localStorage.getItem('pixello-office-token');
+    const response=await fetch(API+'/api/files/'+encodeURIComponent(fileId)+'/content',{headers:{Authorization:'Bearer '+(token||'')}});
+    if(!response.ok){const data=await response.json().catch(()=>({}));throw new Error(data.error||'Não foi possível abrir o arquivo.');}
+    const blob=await response.blob(),url=URL.createObjectURL(blob);
+    if(preview){window.open(url,'_blank','noopener');window.setTimeout(()=>URL.revokeObjectURL(url),60000);}
+    else{const a=node('a') as HTMLAnchorElement;a.href=url;a.download='arquivo';document.body.append(a);a.click();a.remove();window.setTimeout(()=>URL.revokeObjectURL(url),60000);}
   }
   private async renderTeam():Promise<void>{
     const agents=await this.api('/api/agents') as any[];
