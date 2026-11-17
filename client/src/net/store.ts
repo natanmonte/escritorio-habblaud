@@ -446,9 +446,11 @@ export class OfficeStore {
   private async pollCloud(): Promise<void> {
     try {
       const base = 'https://escritorio-ia-api.natanmonte1.workers.dev';
+      const token = typeof localStorage !== 'undefined' ? localStorage.getItem('pixello-office-token') : null;
+      const headers = token ? { Authorization: 'Bearer ' + token } : {};
       const [agentsRes, tasksRes] = await Promise.all([
-        fetch(base + '/api/agents', { cache: 'no-store' }),
-        fetch(base + '/api/tasks', { cache: 'no-store' }),
+        fetch(base + '/api/agents', { cache: 'no-store', headers }),
+        fetch(base + '/api/tasks', { cache: 'no-store', headers }),
       ]);
       if (!agentsRes.ok || !tasksRes.ok) throw new Error('A equipe em nuvem não respondeu.');
       const staff = await agentsRes.json() as Array<{id:string;name:string;role:string;specialty:string}>;
