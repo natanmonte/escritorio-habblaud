@@ -11158,7 +11158,7 @@ html.is-replay #world {
 .staff-workspace__close{border:0;background:transparent;color:inherit;font-size:24px;cursor:pointer}
 .staff-workspace__notice{padding:9px 11px;margin-bottom:12px;border-radius:7px;background:#ffffff0d;font-size:12px;line-height:1.5}
 .staff-workspace__composer{display:grid;gap:8px;margin-bottom:14px}
-.staff-workspace__composer textarea{width:100%;min-height:86px;resize:vertical;box-sizing:border-box;border:1px solid var(--ui-border,#666);border-radius:8px;padding:10px;background:#1118;color:inherit;font:inherit}
+.staff-workspace__composer textarea{width:100%;min-height:180px;resize:vertical;box-sizing:border-box;border:1px solid var(--ui-border,#666);border-radius:8px;padding:10px;background:#1118;color:inherit;font:inherit}
 .staff-workspace__send{justify-self:end;border:0;border-radius:7px;padding:9px 14px;background:#477fca;color:white;font:inherit;cursor:pointer}
 .staff-order{border:1px solid #ffffff20;border-radius:9px;margin:9px 0;overflow:hidden}
 .staff-order__top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;width:100%;padding:11px;border:0;text-align:left;background:#ffffff08;color:inherit;cursor:pointer}
@@ -11195,7 +11195,7 @@ html.is-replay #world {
 .staff-next-step h3{margin:0;font-size:13px}
 
 .staff-deliverable-actions{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}
-.staff-task__result{max-height:280px;overflow:auto;padding:10px;border-radius:7px;background:#0003;font:11px/1.5 ui-monospace,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+.staff-task__result{max-height: min(62vh,680px);overflow:auto;overscroll-behavior:contain;touch-action:pan-y;user-select:text;-webkit-user-select:text; -webkit-overflow-scrolling:touch; padding:14px;border-radius:7px;background:#0003;font:12px/1.6 ui-monospace,monospace;white-space:pre-wrap;overflow-wrap:anywhere;cursor:text}
 
 .staff-workspace__logout{border:1px solid #ffffff25;border-radius:7px;padding:6px 9px;background:#ffffff08;color:inherit;font:inherit;font-size:12px;cursor:pointer;margin-left:auto}
 .staff-auth{max-width:440px;margin:12px auto}
