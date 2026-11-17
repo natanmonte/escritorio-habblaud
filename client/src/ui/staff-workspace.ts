@@ -146,11 +146,12 @@ export class StaffWorkspace implements UiComponent {
     this.management.replaceChildren(wrap);
   }
   private async openOfficeFile(fileId:string,fileName:string,preview:boolean):Promise<void>{
+    const previewWindow=preview?window.open('about:blank','_blank'):null;
     const token=localStorage.getItem('pixello-office-token');
     const response=await fetch(API+'/api/files/'+encodeURIComponent(fileId)+'/content',{headers:{Authorization:'Bearer '+(token||'')}});
-    if(!response.ok){const data=await response.json().catch(()=>({}));throw new Error(data.error||'Não foi possível abrir o arquivo.');}
+    if(!response.ok){previewWindow?.close();const data=await response.json().catch(()=>({}));throw new Error(data.error||'Não foi possível abrir o arquivo.');}
     const blob=await response.blob(),url=URL.createObjectURL(blob);
-    if(preview){window.open(url,'_blank','noopener');window.setTimeout(()=>URL.revokeObjectURL(url),60000);}
+    if(previewWindow){previewWindow.location.href=url;window.setTimeout(()=>URL.revokeObjectURL(url),60000);}
     else{const a=node('a') as HTMLAnchorElement;a.href=url;a.download=fileName||'arquivo';document.body.append(a);a.click();a.remove();window.setTimeout(()=>URL.revokeObjectURL(url),60000);}
   }
   private async renderTeam():Promise<void>{
