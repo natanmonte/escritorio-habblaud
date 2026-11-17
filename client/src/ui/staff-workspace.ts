@@ -26,6 +26,7 @@ export class StaffWorkspace implements UiComponent {
   private open = false;
   private loading = false;
   private selected: string | null = null;
+  private expandedDeliveries = new Set<string>();
   private lastError = '';
   private management: HTMLElement;
   private currentTab = 'orders';
@@ -260,7 +261,9 @@ export class StaffWorkspace implements UiComponent {
         const line = node('div', 'staff-task');
         line.append(node('strong', '', ROLE[task.role] || task.role), node('span', '', task.title), node('span', 'staff-task__status', STATUS[task.status] || task.status));
         if (task.error) line.append(node('p', 'staff-task__error', task.error));
-        if (task.status === 'failed') {
+        if (task.status === 'failed' && /4006|used up your daily free allocation|10,000 neurons/i.test(task.error || '')) {
+          line.append(node('p','staff-task__error','Limite diário gratuito de IA atingido. O funcionário poderá continuar quando a cota gratuita for renovada. Não é necessário contratar um plano pago.'));
+        } else if (task.status === 'failed') {
           const retry=this.action('Tentar novamente',async()=>{
             retry.disabled=true;retry.textContent='Reenviando...';
             try { await this.api('/api/tasks/'+task.id+'/retry','POST',{}); this.notice.textContent='Tarefa reenviada para '+(ROLE[task.role]||task.role)+'.'; await this.refresh(); }
@@ -269,7 +272,9 @@ export class StaffWorkspace implements UiComponent {
           line.append(retry);
         }
         if (task.result) {
-          const details=node('details');details.append(node('summary','','Ver entrega'));
+          const details=node('details');details.open=this.expandedDeliveries.has(task.id);
+          details.addEventListener('toggle',()=>{if(details.open)this.expandedDeliveries.add(task.id);else this.expandedDeliveries.delete(task.id);});
+          details.append(node('summary','','Ver entrega'));
           const lowerResult=task.result.toLowerCase();
           const fenceStart=lowerResult.indexOf('```html');
           const htmlStart=lowerResult.indexOf('<!doctype html')>=0?lowerResult.indexOf('<!doctype html'):lowerResult.indexOf('<html');
