@@ -244,7 +244,6 @@ export class StaffWorkspace implements UiComponent {
   private paint(): void {
     this.notice.textContent = this.lastError || 'Equipe conectada · Theo recebe suas ordens e distribui o trabalho entre os especialistas.';
     this.renderTab();
-    this.renderTab();
     this.list.replaceChildren();
     if (!this.orders.length) { this.list.append(node('p', 'staff-workspace__empty', 'Nenhuma ordem ainda. Escreva acima o que precisa ser feito.')); return; }
     for (const order of this.orders) {
@@ -278,11 +277,6 @@ export class StaffWorkspace implements UiComponent {
         const next=node('div','staff-next-step');next.append(node('h3','','Adicionar nova etapa ao projeto'));
         const chooser=node('select','staff-select');
         void this.api('/api/agents').then((rows:any[])=>{for(const a of rows.filter(a=>a.id!=='theo')){const o=node('option','',a.name+' · '+a.role) as HTMLOptionElement;o.value=a.id;chooser.append(o);}});
-        const continueBtn=this.action('Enviar nova etapa',async()=>{if(!chooser.value){this.notice.textContent='Não há funcionário disponível.';return;}await this.api('/api/tasks/'+order.id+'/continue','POST',{agent_id:chooser.value});this.notice.textContent='Nova etapa enviada. O funcionário recebeu o histórico e as entregas anteriores.';await this.refresh();});
-        next.append(chooser,continueBtn);conversation.append(next);
-        const next=node('div','staff-next-step');next.append(node('h3','','Adicionar nova etapa ao projeto'));
-        const chooser=node('select','staff-select');let available:any[]=[];
-        void this.api('/api/agents').then((rows:any[])=>{available=rows.filter(a=>a.id!=='theo');for(const a of available){const o=node('option','',a.name+' · '+a.role) as HTMLOptionElement;o.value=a.id;chooser.append(o);}});
         const continueBtn=this.action('Enviar nova etapa',async()=>{if(!chooser.value){this.notice.textContent='Não há funcionário disponível.';return;}await this.api('/api/tasks/'+order.id+'/continue','POST',{agent_id:chooser.value});this.notice.textContent='Nova etapa enviada. O funcionário recebeu o histórico e as entregas anteriores.';await this.refresh();});
         next.append(chooser,continueBtn);conversation.append(next);
         card.append(conversation);
