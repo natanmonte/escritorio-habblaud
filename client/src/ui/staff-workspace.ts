@@ -6,8 +6,8 @@ type StaffTask = { id: string; title: string; role: string; status: string; resu
 type StaffOrder = { id: string; instruction: string; status: string; tasks: StaffTask[]; messages: { id: string; from: string; to: string; text: string; at: number }[]; report?: string; createdAt: number };
 const API = 'https://escritorio-ia-api.natanmonte1.workers.dev';
 const STATUS: Record<string, string> = { queued: 'Na fila', running: 'Trabalhando', done: 'Concluído', failed: 'Falhou' };
-const ROLE: Record<string, string> = { theo: 'Theo · gerente', nina: 'Nina · pesquisa', maya: 'Maya · marketing', luca: 'Luca · copy' };
-const NAMES: Record<string, string> = { user: 'Natan', theo: 'Theo', nina: 'Nina', maya: 'Maya', luca: 'Luca' };
+const ROLE: Record<string, string> = { theo: 'Theo · gerente', nina: 'Nina · pesquisa', maya: 'Maya · marketing', luca: 'Luca · copy', julio: 'Julio · desenvolvedor web' };
+const NAMES: Record<string, string> = { user: 'Natan', theo: 'Theo', nina: 'Nina', maya: 'Maya', luca: 'Luca', julio: 'Julio' };
 function node<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
   const el = document.createElement(tag); if (className) el.className = className; if (text !== undefined) el.textContent = text; return el;
 }
