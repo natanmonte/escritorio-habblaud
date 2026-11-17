@@ -56,7 +56,7 @@ export class StaffWorkspace implements UiComponent {
     }
     this.management=node('div','staff-workspace__management');
     this.list = node('div', 'staff-workspace__orders'); this.el.append(header, nav, this.notice, composer, this.list, this.management);
-    window.setInterval(() => { if (this.open && !this.authMode && localStorage.getItem('pixello-office-token')) void this.refresh(); }, 2500);
+    window.setInterval(() => { const selection=window.getSelection(); const selectingDelivery=!!selection?.anchorNode && !!(selection.anchorNode instanceof Node) && !!(selection.anchorNode.parentElement?.closest('.staff-task__result')); const focusedComposer=this.el.contains(document.activeElement) && (document.activeElement instanceof HTMLTextAreaElement || document.activeElement instanceof HTMLInputElement); if (this.open && !this.authMode && !selectingDelivery && !focusedComposer && localStorage.getItem('pixello-office-token')) void this.refresh(); }, 2500);
     // Primeiro acesso: abre diretamente o cadastro do administrador, sem exigir um clique no botão Equipe.
     if (!localStorage.getItem('pixello-office-token')) {
       this.open = true;
@@ -288,7 +288,9 @@ export class StaffWorkspace implements UiComponent {
             const download=this.action('Baixar HTML',()=>{const blob=new Blob([rawHtml],{type:'text/html;charset=utf-8'});const url=URL.createObjectURL(blob);const a=node('a') as HTMLAnchorElement;a.href=url;a.download='pagina-vendas.html';document.body.append(a);a.click();a.remove();window.setTimeout(()=>URL.revokeObjectURL(url),60000);});
             tools.append(preview,download);details.append(tools);
           }
-          const result=node('pre','staff-task__result');result.textContent=task.result;details.append(result);line.append(details);
+          const result=node('pre','staff-task__result');result.textContent=task.result;
+          const copy=this.action('Copiar texto',async()=>{try{await navigator.clipboard.writeText(task.result||'');copy.textContent='Copiado!';window.setTimeout(()=>{copy.textContent='Copiar texto';},1800);}catch{const range=document.createRange();range.selectNodeContents(result);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);this.notice.textContent='Texto selecionado. Use Ctrl+C para copiar.';}});
+          details.append(copy,result);line.append(details);
         }
         tasks.append(line);
       }
