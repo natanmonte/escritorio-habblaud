@@ -21,7 +21,7 @@ export function start(): void {
   );
 
   const params = new URLSearchParams(location.search);
-  const store = new OfficeStore({ mock: params.has('mock') });
+  const store = new OfficeStore({ mock: params.has('mock'), cloud: !params.has('mock') });
   const worldCanvas = document.getElementById('world') as HTMLCanvasElement;
   const uiRoot = document.getElementById('ui') as HTMLElement;
   const world = createWorld(worldCanvas, store);
@@ -29,7 +29,7 @@ export function start(): void {
   createUI(uiRoot, store, world, city);
   // O que esta página pode fazer (porta local ou remota com login) chega antes do primeiro snapshot (ou desiste em
   // poucos segundos e fica a regra de antes).
-  if (store.mock) store.connect();
+  if (store.mock || store.cloud) store.connect();
   else {
     void loadAccess().finally(() => store.connect());
     // Reconexão (servidor reiniciado, celular de volta do bloqueio): o acesso pode ter mudado, e o login pode ter
