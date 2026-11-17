@@ -105,7 +105,9 @@ export class EmptyState implements UiComponent {
   render(): void {
     const { store } = this.ctx;
     const snap = store.snapshot;
-    const show = officeIsEmpty(this.ctx);
+    // No primeiro acesso cloud, a tela de cadastro do administrador substitui o estado de escritório vazio.
+    const needsCloudLogin = store.cloud && !localStorage.getItem('pixello-office-token');
+    const show = !needsCloudLogin && officeIsEmpty(this.ctx);
     setHidden(this.el, !show);
     if (!show || !snap) return;
     setText(this.hint, emptyOfficeHint(snap.accounts));
