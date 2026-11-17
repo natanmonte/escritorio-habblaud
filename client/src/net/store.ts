@@ -43,6 +43,8 @@ export interface EventSourceLike {
 
 export interface StoreOptions {
   mock?: boolean;
+  /** Usa a equipe autônoma hospedada no Cloudflare, sem servidor local. */
+  cloud?: boolean;
   /** Parâmetros do modo mock (padrão: a query string da página). */
   search?: string;
   /** Fábrica do stream (padrão: `new EventSource(url)`). */
@@ -89,6 +91,7 @@ export class OfficeStore {
   feed: FeedItem[] = [];
   connection: ConnectionState = 'connecting';
   readonly mock: boolean;
+  readonly cloud: boolean;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private listeners = new Map<keyof StoreEvents, Set<(value: any) => void>>();
@@ -96,6 +99,9 @@ export class OfficeStore {
   private roomIndex = new Map<string, RoomInfo>();
   private source: EventSourceLike | null = null;
   private mockTimer: ReturnType<typeof setInterval> | null = null;
+  private cloudTimer: ReturnType<typeof setInterval> | null = null;
+  private cloudSeq = 0;
+  private readonly cloudStartedAt = Date.now();
   private readonly search: string;
   private readonly openStream: (url: string) => EventSourceLike;
   /** Reconexão: tentativas seguidas sem sucesso e o timer da próxima. */
@@ -113,6 +119,7 @@ export class OfficeStore {
 
   constructor(opts: StoreOptions = {}) {
     this.mock = !!opts.mock;
+    this.cloud = !!opts.cloud;
     this.search = opts.search ?? (typeof location !== 'undefined' ? location.search : '');
     this.openStream = opts.eventSource ?? ((url) => new EventSource(url));
   }
@@ -128,6 +135,7 @@ export class OfficeStore {
     if (!this.stopped) return;
     this.stopped = false;
     if (this.mock) return this.startMock();
+    if (this.cloud) return this.startCloud();
     this.startSSE();
   }
 
@@ -138,6 +146,8 @@ export class OfficeStore {
     this.closeSource();
     if (this.mockTimer) clearInterval(this.mockTimer);
     this.mockTimer = null;
+    if (this.cloudTimer) clearInterval(this.cloudTimer);
+    this.cloudTimer = null;
   }
 
   /** Reconecta imediatamente (botão "Tentar agora"), sem esperar o próximo intervalo. */
@@ -145,7 +155,10 @@ export class OfficeStore {
     if (this.mock) return;
     this.clearRetry();
     this.closeSource();
+    if (this.cloudTimer) clearInterval(this.cloudTimer);
+    this.cloudTimer = null;
     this.stopped = false;
+    if (this.cloud) return this.startCloud();
     this.startSSE();
   }
 
@@ -419,6 +432,65 @@ export class OfficeStore {
     } catch (err) {
       console.warn(`[store] ${what} inválido ignorado`, err);
       return null;
+    }
+  }
+
+  /** Equipe em nuvem: converte tarefas reais do Worker em personagens do escritório original. */
+  private startCloud(): void {
+    this.setConnection('connecting');
+    void this.pollCloud();
+    if (this.cloudTimer) clearInterval(this.cloudTimer);
+    this.cloudTimer = setInterval(() => { if (!this.stopped) void this.pollCloud(); }, 5_000);
+  }
+
+  private async pollCloud(): Promise<void> {
+    try {
+      const base = 'https://escritorio-ia-api.natanmonte1.workers.dev';
+      const [agentsRes, tasksRes] = await Promise.all([
+        fetch(base + '/api/agents', { cache: 'no-store' }),
+        fetch(base + '/api/tasks', { cache: 'no-store' }),
+      ]);
+      if (!agentsRes.ok || !tasksRes.ok) throw new Error('A equipe em nuvem não respondeu.');
+      const staff = await agentsRes.json() as Array<{id:string;name:string;role:string;specialty:string}>;
+      const tasks = await tasksRes.json() as Array<{id:string;agent_id:string;title:string;description:string;status:string;result?:string;error?:string;created_at:string;parent_id?:string;project_id?:string}>;
+      const now = Date.now();
+      const when = (v:string) => { const n=Date.parse(v); return Number.isFinite(n)?n:now; };
+      const roomId = 'pixello-equipe';
+      const room: RoomInfo = { id: roomId, name: 'Equipe Pixello', path: '/equipe-pixello', slot: 0, seed: 3187, createdAt: this.cloudStartedAt };
+      const mapped: AgentInfo[] = staff.map((person,index) => {
+        const own = tasks.filter(t => t.agent_id === person.id);
+        const active = own.filter(t => ['queued','processing','coordinating'].includes(t.status));
+        const latest = [...own].sort((a,b)=>when(b.created_at)-when(a.created_at))[0];
+        const status: AgentInfo['status'] = active.length ? 'working' : 'idle';
+        const activity: Activity = {
+          id: 'cloud-'+(latest?.id || person.id),
+          kind: active.length ? 'plan' : 'respond',
+          icon: active.length ? '◈' : '·',
+          text: (active[0]?.title || latest?.title || 'Aguardando uma nova ordem').slice(0,46),
+          detail: active[0]?.description || latest?.result || latest?.description || person.specialty,
+          at: latest ? when(latest.created_at) : now,
+        };
+        return {
+          id: 'cloud-'+person.id, kind: 'main', roomId, name: person.name,
+          look: index===1 || index===3 ? 'f' : 'm', role: person.role,
+          title: person.specialty, sessionId: 'cloud-'+person.id, account: 'cloud',
+          status, activity, recent: [activity],
+          tasks: own.map(t=>({id:t.id,title:t.title,status: ['queued'].includes(t.status)?'pending' as const:['processing','coordinating'].includes(t.status)?'in_progress' as const:'completed' as const, ...( ['processing','coordinating'].includes(t.status)?{activeForm:'Trabalhando'}:{})})),
+          startedAt: this.cloudStartedAt, lastEventAt: latest?when(latest.created_at):now,
+          statusSince: latest?when(latest.created_at):now,
+          stats: {toolCalls:0,tokensIn:0,tokensOut:0,subagents:0},
+          seed: 7400+index*173,
+        };
+      });
+      const snap: OfficeSnapshot = {
+        rev: ++this.cloudSeq, serverTime: now, rooms: [room], agents: mapped, accounts: [],
+        meta: {demo:false,sources:[],startedAt:this.cloudStartedAt,version:'cloud',terminal:false,messages:false},
+      };
+      this.applySnapshot(snap);
+      this.setConnection('open');
+    } catch (error) {
+      console.warn('[cloud] falha ao atualizar equipe', error);
+      this.setConnection('closed');
     }
   }
 
