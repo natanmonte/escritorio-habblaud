@@ -63,7 +63,7 @@ export class StaffWorkspace implements UiComponent {
     this.management.hidden=orders;
     const labels:Record<string,string>={orders:'Ordens',team:'Equipe',training:'Treinamento',company:'Empresa'};
     this.el.querySelectorAll<HTMLButtonElement>('.staff-workspace__tab').forEach(b=>b.classList.toggle('is-active',b.textContent===labels[this.currentTab]));
-    if(!orders) void this.loadManagement();
+    if(!orders && this.management.dataset.tab!==this.currentTab){this.management.dataset.tab=this.currentTab;void this.loadManagement();}
   }
   private field(label:string,value='',multiline=false):{wrap:HTMLElement;control:HTMLInputElement|HTMLTextAreaElement}{
     const wrap=node('label','staff-field');wrap.append(node('span','',label));
