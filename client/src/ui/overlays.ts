@@ -48,7 +48,7 @@ export class Splash implements UiComponent {
     }
     const waited = performance.now() - this.startedAt;
     let text = tr('Conectando ao escritório…');
-    if (waited > DISCONNECTED_BANNER_MS) text = tr('O servidor do Habblaud não responde. Confira se ele está rodando (npm run dev ou npm start); seguimos tentando.');
+    if (waited > DISCONNECTED_BANNER_MS) text = store.cloud ? tr('A equipe na nuvem não respondeu. Estamos tentando novamente.') : tr('O servidor do Habblaud não responde. Confira se ele está rodando (npm run dev ou npm start); seguimos tentando.');
     else if (store.connection === 'closed') text = tr('Não foi possível conectar ao servidor do Habblaud. Tentando de novo…');
     setText(this.text, text);
     // Reavalia o texto mesmo sem eventos novos.
@@ -173,7 +173,7 @@ export class ConnectionBanner implements UiComponent {
       this.text,
       store.snapshot
         ? tr('Sem conexão com o servidor do Habblaud há algum tempo. O escritório mostra o último estado conhecido.')
-        : tr('O servidor do Habblaud não responde. Confira se ele está rodando (npm run dev ou npm start).'),
+        : store.cloud ? tr('A equipe na nuvem não respondeu. Tentando reconectar…') : tr('O servidor do Habblaud não responde. Confira se ele está rodando (npm run dev ou npm start).'),
     );
     const next = store.nextRetryAt;
     const secs = next === null ? 0 : Math.max(1, Math.ceil((next - Date.now()) / 1000));
