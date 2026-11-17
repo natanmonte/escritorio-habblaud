@@ -67,7 +67,7 @@ export class StaffWorkspace implements UiComponent {
   }
   private showAuth():void{
     this.authMode=true;this.notice.hidden=true;this.input.closest('form')!.hidden=true;this.list.hidden=true;
-    this.management.hidden=false;this.el.querySelector('.staff-workspace__nav')?.setAttribute('hidden','');
+    this.management.hidden=false;delete this.management.dataset.tab;this.el.querySelector('.staff-workspace__nav')?.setAttribute('hidden','');
     this.el.querySelector('.staff-workspace__logout')?.setAttribute('hidden','');
     const status=fetch(API+'/api/auth/status').then(r=>r.json()).catch(()=>({setupRequired:false}));
     void status.then((state:any)=>{
