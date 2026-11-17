@@ -52,7 +52,7 @@ export class StaffWorkspace implements UiComponent {
     }
     this.management=node('div','staff-workspace__management');
     this.list = node('div', 'staff-workspace__orders'); this.el.append(header, nav, this.notice, composer, this.list, this.management);
-    window.setInterval(() => { if (this.open) void this.refresh(); }, 2500);
+    window.setInterval(() => { if (this.open && !this.authMode && localStorage.getItem('pixello-office-token')) void this.refresh(); }, 2500);
   }
   render(): void { this.button.setAttribute('aria-expanded', String(this.open)); }
   private async api(path:string,method='GET',body?:unknown):Promise<any>{
