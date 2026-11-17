@@ -11193,3 +11193,6 @@ html.is-replay #world {
 .staff-action.danger{color:#ff9b9b;border-color:#ff9b9b66}
 .staff-next-step{display:grid;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid #ffffff20}
 .staff-next-step h3{margin:0;font-size:13px}
+
+.staff-deliverable-actions{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}
+.staff-task__result{max-height:280px;overflow:auto;padding:10px;border-radius:7px;background:#0003;font:11px/1.5 ui-monospace,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
