@@ -447,8 +447,23 @@ export class OfficeStore {
     try {
       const base = 'https://escritorio-ia-api.natanmonte1.workers.dev';
       const token = typeof localStorage !== 'undefined' ? localStorage.getItem('pixello-office-token') : null;
-      // A cena 2D só consulta a API depois do login no painel da equipe.
-      if (!token) { this.setConnection('connecting'); return; }
+      // Sem sessão, libera a tela do escritório para que o usuário consiga abrir
+      // Equipe e criar/usar o acesso. Não deixa o Splash bloquear a própria tela de login.
+      if (!token) {
+        if (!this.snapshot) {
+          const now = Date.now();
+          this.applySnapshot({
+            rev: ++this.cloudSeq,
+            serverTime: now,
+            rooms: [],
+            agents: [],
+            accounts: [],
+            meta: { demo: false, sources: [], startedAt: this.cloudStartedAt, version: 'cloud-auth', terminal: false, messages: false },
+          });
+        }
+        this.setConnection('open');
+        return;
+      }
       const headers = { Authorization: 'Bearer ' + token };
       const [agentsRes, tasksRes] = await Promise.all([
         fetch(base + '/api/agents', { cache: 'no-store', headers }),
