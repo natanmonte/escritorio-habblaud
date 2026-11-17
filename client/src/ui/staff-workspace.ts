@@ -139,19 +139,19 @@ export class StaffWorkspace implements UiComponent {
       top.append(node('strong','',file.name),node('span','',Math.max(1,Math.round((file.size||0)/1024))+' KB'));
       card.append(top,node('p','staff-help',(file.content_type||'Arquivo')+' · '+new Date(file.created_at).toLocaleString('pt-BR')));
       const actions=node('div','staff-deliverable-actions');
-      actions.append(this.action('Visualizar',async()=>{await this.openOfficeFile(file.id,true);},'primary'));
-      actions.append(this.action('Baixar arquivo',async()=>{await this.openOfficeFile(file.id,false);}));
+      actions.append(this.action('Visualizar',async()=>{await this.openOfficeFile(file.id,file.name,true);},'primary'));
+      actions.append(this.action('Baixar arquivo',async()=>{await this.openOfficeFile(file.id,file.name,false);}));
       card.append(actions);wrap.append(card);
     }
     this.management.replaceChildren(wrap);
   }
-  private async openOfficeFile(fileId:string,preview:boolean):Promise<void>{
+  private async openOfficeFile(fileId:string,fileName:string,preview:boolean):Promise<void>{
     const token=localStorage.getItem('pixello-office-token');
     const response=await fetch(API+'/api/files/'+encodeURIComponent(fileId)+'/content',{headers:{Authorization:'Bearer '+(token||'')}});
     if(!response.ok){const data=await response.json().catch(()=>({}));throw new Error(data.error||'Não foi possível abrir o arquivo.');}
     const blob=await response.blob(),url=URL.createObjectURL(blob);
     if(preview){window.open(url,'_blank','noopener');window.setTimeout(()=>URL.revokeObjectURL(url),60000);}
-    else{const a=node('a') as HTMLAnchorElement;a.href=url;a.download='arquivo';document.body.append(a);a.click();a.remove();window.setTimeout(()=>URL.revokeObjectURL(url),60000);}
+    else{const a=node('a') as HTMLAnchorElement;a.href=url;a.download=fileName||'arquivo';document.body.append(a);a.click();a.remove();window.setTimeout(()=>URL.revokeObjectURL(url),60000);}
   }
   private async renderTeam():Promise<void>{
     const agents=await this.api('/api/agents') as any[];
