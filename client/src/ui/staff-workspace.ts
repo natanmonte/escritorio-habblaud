@@ -26,6 +26,8 @@ export class StaffWorkspace implements UiComponent {
   private loading = false;
   private selected: string | null = null;
   private lastError = '';
+  private management: HTMLElement;
+  private currentTab = 'orders';
   constructor() {
     this.button = node('button', 'ui-btn-staff', 'Equipe'); this.button.type = 'button'; this.button.title = 'Abrir equipe de trabalho';
     this.button.addEventListener('click', () => { this.open = !this.open; this.el.hidden = !this.open; if (this.open) void this.refresh(); });
@@ -39,10 +41,90 @@ export class StaffWorkspace implements UiComponent {
     this.input.placeholder = 'Ex.: Planeje uma campanha para captar pacientes para uma clínica...'; this.input.required = true; this.input.maxLength = 12000;
     const send = node('button', 'staff-workspace__send', 'Enviar ordem'); send.type = 'submit';
     composer.append(this.input, send); composer.addEventListener('submit', e => { e.preventDefault(); void this.submit(); });
-    this.list = node('div', 'staff-workspace__orders'); this.el.append(header, this.notice, composer, this.list);
+    const nav = node('nav', 'staff-workspace__nav');
+    for (const [id,label] of [['orders','Ordens'],['team','Equipe'],['training','Treinamento'],['company','Empresa']] as const) {
+      const tab=node('button','staff-workspace__tab',label); tab.type='button';
+      tab.addEventListener('click',()=>{this.currentTab=id;this.renderTab();});
+      nav.append(tab);
+    }
+    this.management=node('div','staff-workspace__management');
+    this.list = node('div', 'staff-workspace__orders'); this.el.append(header, nav, this.notice, composer, this.list, this.management);
     window.setInterval(() => { if (this.open) void this.refresh(); }, 2500);
   }
   render(): void { this.button.setAttribute('aria-expanded', String(this.open)); }
+  private async api(path:string,method='GET',body?:unknown):Promise<any>{
+    return this.request<any>(path,{method,...(body===undefined?{}:{body:JSON.stringify(body)})});
+  }
+  private renderTab():void {
+    const orders=this.currentTab==='orders';
+    this.notice.hidden=!orders; this.input.closest('form')!.hidden=!orders; this.list.hidden=!orders;
+    this.management.hidden=orders;
+    this.el.querySelectorAll<HTMLButtonElement>('.staff-workspace__tab').forEach(b=>b.classList.toggle('is-active',b.textContent===({orders:'Ordens',team:'Equipe',training:'Treinamento',company:'Empresa'} as Record<string,string>)[this.currentTab]));
+    if(!orders) void this.loadManagement();
+  }
+  private field(label:string,value='',multiline=false):{wrap:HTMLElement;control:HTMLInputElement|HTMLTextAreaElement}{
+    const wrap=node('label','staff-field');wrap.append(node('span','',label));
+    const control=multiline?node('textarea') as HTMLTextAreaElement:node('input') as HTMLInputElement;
+    control.value=value;control.setAttribute('aria-label',label);wrap.append(control);return {wrap,control};
+  }
+  private action(label:string,fn:()=>void,kind=''):HTMLButtonElement{
+    const b=node('button','staff-action '+kind,label);b.type='button';b.addEventListener('click',fn);return b;
+  }
+  private async loadManagement():Promise<void>{
+    this.management.replaceChildren(node('p','staff-workspace__empty','Carregando...'));
+    try{
+      if(this.currentTab==='team') await this.renderTeam();
+      else if(this.currentTab==='training') await this.renderTraining();
+      else if(this.currentTab==='company') await this.renderCompany();
+    }catch(e){this.management.replaceChildren(node('p','staff-task__error',e instanceof Error?e.message:String(e)));}
+  }
+  private async renderTeam():Promise<void>{
+    const agents=await this.api('/api/agents') as any[];
+    const wrap=node('div','staff-management');
+    wrap.append(node('h3','','Funcionários ativos'),node('p','staff-help','Contrate especialistas, ajuste suas funções ou demita quem não faz mais parte da equipe.'));
+    for(const a of agents){
+      const card=node('section','staff-person');
+      const top=node('div','staff-person__top');top.append(node('strong','',a.name),node('span','',a.role));card.append(top,node('p','staff-help',a.specialty));
+      if(a.id!=='theo') card.append(this.action('Demitir',async()=>{if(!confirm('Demitir '+a.name+'? O histórico e as entregas serão preservados.'))return;await this.api('/api/agents/'+a.id,'DELETE');await this.renderTeam();},'danger'));
+      wrap.append(card);
+    }
+    wrap.append(node('h3','','Contratar funcionário'));
+    const name=this.field('Nome'),role=this.field('Cargo'),specialty=this.field('Especialidade', '',true),training=this.field('Treinamento inicial', 'Instruções profissionais que o funcionário deve seguir...',true);
+    const hire=this.action('Contratar',async()=>{
+      const n=name.control.value.trim(),r=role.control.value.trim(),sp=specialty.control.value.trim();
+      if(!n||!r||!sp){this.notice.textContent='Preencha nome, cargo e especialidade.';return;}
+      await this.api('/api/agents','POST',{name:n,role:r,specialty:sp,training:training.control.value});
+      await this.renderTeam();
+    },'primary');
+    wrap.append(name.wrap,role.wrap,specialty.wrap,training.wrap,hire);this.management.replaceChildren(wrap);
+  }
+  private async renderTraining():Promise<void>{
+    const agents=await this.api('/api/training') as any[];
+    const wrap=node('div','staff-management');wrap.append(node('h3','','Centro de treinamento'),node('p','staff-help','O treinamento é salvo e enviado ao funcionário em todas as novas tarefas. Não substitui a especialidade profissional: complementa o conhecimento com os padrões da Pixello.'));
+    const select=node('select','staff-select');for(const a of agents){const o=node('option','',a.name+' · '+a.role) as HTMLOptionElement;o.value=a.id;select.append(o);}
+    const prompt=this.field('Instruções profissionais permanentes','',true),training=this.field('Treinamento adicional da Pixello','',true);
+    const load=()=>{const a=agents.find(x=>x.id===select.value);if(!a)return;prompt.control.value=a.system_prompt||'';training.control.value=a.training||'';};
+    select.addEventListener('change',load);load();
+    const save=this.action('Salvar treinamento',async()=>{await this.api('/api/agents/'+select.value,'PATCH',{system_prompt:prompt.control.value,training:training.control.value});this.notice.textContent='Treinamento salvo. Será aplicado nas próximas tarefas.';},'primary');
+    wrap.append(select,prompt.wrap,training.wrap,save);this.management.replaceChildren(wrap);
+  }
+  private async renderCompany():Promise<void>{
+    const data=await this.api('/api/company') as Record<string,any>;
+    const wrap=node('div','staff-management');wrap.append(node('h3','','Informações da empresa'),node('p','staff-help','Essas informações formam o contexto permanente usado pela equipe ao planejar e executar trabalhos.'));
+    const fields=[
+      this.field('Nome da empresa',data.name||'Pixello'),
+      this.field('Descrição',data.description||'',true),
+      this.field('Segmento',data.segment||''),
+      this.field('Serviços oferecidos',data.services||'',true),
+      this.field('Público-alvo',data.audience||'',true),
+      this.field('Diferenciais',data.differentials||'',true),
+      this.field('Site',data.website||''),
+      this.field('Instagram',data.instagram||''),
+      this.field('Tom de voz da marca',data.brand_voice||'',true)
+    ];
+    const save=this.action('Salvar informações',async()=>{const keys=['name','description','segment','services','audience','differentials','website','instagram','brand_voice'];const payload:Record<string,string>={};keys.forEach((k,i)=>payload[k]=fields[i].control.value);await this.api('/api/company','POST',payload);this.notice.textContent='Informações da empresa salvas.';},'primary');
+    fields.forEach(x=>wrap.append(x.wrap));wrap.append(save);this.management.replaceChildren(wrap);
+  }
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(API + path, { ...init, headers: { Accept: 'application/json', ...(init?.body ? { 'Content-Type': 'application/json' } : {}), ...init?.headers } });
     const data = await response.json() as T & { error?: string };
@@ -85,6 +167,7 @@ export class StaffWorkspace implements UiComponent {
   }
   private paint(): void {
     this.notice.textContent = this.lastError || 'Equipe conectada · Theo recebe suas ordens e distribui o trabalho entre os especialistas.';
+    this.renderTab();
     this.list.replaceChildren();
     if (!this.orders.length) { this.list.append(node('p', 'staff-workspace__empty', 'Nenhuma ordem ainda. Escreva acima o que precisa ser feito.')); return; }
     for (const order of this.orders) {
@@ -104,6 +187,11 @@ export class StaffWorkspace implements UiComponent {
         const conversation = node('div', 'staff-order__conversation'); conversation.append(node('h3', '', 'Conversa da equipe'));
         for (const message of order.messages) { const msg = node('p', 'staff-message'); msg.append(node('strong', '', message.from + ' → ' + message.to + ': '), document.createTextNode(message.text)); conversation.append(msg); }
         if (order.report) conversation.append(node('h3', '', 'Relatório do Theo'), node('p', 'staff-order__report', order.report));
+        const next=node('div','staff-next-step');next.append(node('h3','','Adicionar nova etapa ao projeto'));
+        const chooser=node('select','staff-select');let available:any[]=[];
+        void this.api('/api/agents').then((rows:any[])=>{available=rows.filter(a=>a.id!=='theo');for(const a of available){const o=node('option','',a.name+' · '+a.role) as HTMLOptionElement;o.value=a.id;chooser.append(o);}});
+        const continueBtn=this.action('Enviar nova etapa',async()=>{if(!chooser.value){this.notice.textContent='Não há funcionário disponível.';return;}await this.api('/api/tasks/'+order.id+'/continue','POST',{agent_id:chooser.value});this.notice.textContent='Nova etapa enviada. O funcionário recebeu o histórico e as entregas anteriores.';await this.refresh();});
+        next.append(chooser,continueBtn);conversation.append(next);
         card.append(conversation);
       }
       this.list.append(card);
