@@ -233,6 +233,14 @@ export class StaffWorkspace implements UiComponent {
         const line = node('div', 'staff-task');
         line.append(node('strong', '', ROLE[task.role] || task.role), node('span', '', task.title), node('span', 'staff-task__status', STATUS[task.status] || task.status));
         if (task.error) line.append(node('p', 'staff-task__error', task.error));
+        if (task.status === 'failed') {
+          const retry=this.action('Tentar novamente',async()=>{
+            retry.disabled=true;retry.textContent='Reenviando...';
+            try { await this.api('/api/tasks/'+task.id+'/retry','POST',{}); this.notice.textContent='Tarefa reenviada para '+(ROLE[task.role]||task.role)+'.'; await this.refresh(); }
+            catch(error) { retry.disabled=false;retry.textContent='Tentar novamente';this.notice.textContent=error instanceof Error?error.message:String(error); }
+          });
+          line.append(retry);
+        }
         if (task.result) {
           const details=node('details');details.append(node('summary','','Ver entrega'));
           const lowerResult=task.result.toLowerCase();
