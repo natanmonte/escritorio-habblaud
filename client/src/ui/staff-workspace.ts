@@ -28,11 +28,12 @@ export class StaffWorkspace implements UiComponent {
   private lastError = '';
   private management: HTMLElement;
   private currentTab = 'orders';
+  private authMode = false;
   private management: HTMLElement;
   private currentTab = 'orders';
   constructor() {
     this.button = node('button', 'ui-btn-staff', 'Equipe'); this.button.type = 'button'; this.button.title = 'Abrir equipe de trabalho';
-    this.button.addEventListener('click', () => { this.open = !this.open; this.el.hidden = !this.open; if (this.open) void this.refresh(); });
+    this.button.addEventListener('click', () => { this.open = !this.open; this.el.hidden = !this.open; if (this.open) void this.enter(); });
     this.el = node('section', 'staff-workspace'); this.el.hidden = true;
     const header = node('header', 'staff-workspace__header'), heading = node('div');
     heading.append(node('h2', '', 'Escritório · Equipe'), node('p', '', 'Dê uma ordem ao Theo. Ele distribui o trabalho e acompanha as entregas.'));
@@ -57,7 +58,43 @@ export class StaffWorkspace implements UiComponent {
   private async api(path:string,method='GET',body?:unknown):Promise<any>{
     return this.request<any>(path,{method,...(body===undefined?{}:{body:JSON.stringify(body)})});
   }
+  private async enter():Promise<void>{
+    try{
+      const token=localStorage.getItem('pixello-office-token');
+      if(token){await this.api('/api/agents');this.authMode=false;this.renderTab();await this.refresh();return;}
+      this.showAuth();
+    }catch{localStorage.removeItem('pixello-office-token');this.showAuth();}
+  }
+  private showAuth():void{
+    this.authMode=true;this.notice.hidden=true;this.input.closest('form')!.hidden=true;this.list.hidden=true;
+    this.management.hidden=false;this.el.querySelector('.staff-workspace__nav')?.setAttribute('hidden','');
+    this.el.querySelector('.staff-workspace__logout')?.setAttribute('hidden','');
+    const status=fetch(API+'/api/auth/status').then(r=>r.json()).catch(()=>({setupRequired:false}));
+    void status.then((state:any)=>{
+      const setup=!!state.setupRequired;
+      const wrap=node('div','staff-management staff-auth');
+      wrap.append(node('h3','',setup?'Criar acesso do escritório':'Entrar no escritório'),node('p','staff-help',setup?'Crie o usuário e a senha de administrador. Esse cadastro inicial só poderá ser feito uma vez.':'Entre com seu usuário e senha para acessar a equipe e os projetos.'));
+      const username=this.field('Usuário');const password=this.field('Senha');(password.control as HTMLInputElement).type='password';
+      if(setup)(password.control as HTMLInputElement).autocomplete='new-password';else (password.control as HTMLInputElement).autocomplete='current-password';
+      const feedback=node('p','staff-task__error','');
+      const submit=this.action(setup?'Criar conta e entrar':'Entrar',async()=>{
+        submit.disabled=true;feedback.textContent='Verificando acesso...';
+        try{
+          const result=await this.api(setup?'/api/auth/setup':'/api/auth/login','POST',{username:username.control.value,password:password.control.value});
+          localStorage.setItem('pixello-office-token',result.token);this.authMode=false;
+          this.el.querySelector('.staff-workspace__nav')?.removeAttribute('hidden');this.el.querySelector('.staff-workspace__logout')?.removeAttribute('hidden');
+          this.currentTab='orders';this.management.hidden=true;this.renderTab();await this.refresh();
+        }catch(e){feedback.textContent=e instanceof Error?e.message:String(e);submit.disabled=false;}
+      },'primary');
+      wrap.append(username.wrap,password.wrap,submit,feedback);this.management.replaceChildren(wrap);
+    });
+  }
+  private async logout():Promise<void>{
+    try{await this.api('/api/auth/logout','POST');}catch{}
+    localStorage.removeItem('pixello-office-token');this.showAuth();
+  }
   private renderTab():void {
+    if(this.authMode)return;
     const orders=this.currentTab==='orders';
     this.notice.hidden=!orders; this.input.closest('form')!.hidden=!orders; this.list.hidden=!orders;
     this.management.hidden=orders;
@@ -202,7 +239,8 @@ export class StaffWorkspace implements UiComponent {
     fields.forEach(x=>wrap.append(x.wrap));wrap.append(save);this.management.replaceChildren(wrap);
   }
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
-    const response = await fetch(API + path, { ...init, headers: { Accept: 'application/json', ...(init?.body ? { 'Content-Type': 'application/json' } : {}), ...init?.headers } });
+    const token=localStorage.getItem('pixello-office-token');
+    const response = await fetch(API + path, { ...init, headers: { Accept: 'application/json', ...(init?.body ? { 'Content-Type': 'application/json' } : {}), ...(token?{Authorization:'Bearer '+token}:{}), ...init?.headers } });
     const data = await response.json() as T & { error?: string };
     if (!response.ok) throw new Error(data.error || 'Não foi possível acessar a equipe.');
     return data;
@@ -229,7 +267,11 @@ export class StaffWorkspace implements UiComponent {
         } as StaffOrder;
       }).sort((a,b) => b.createdAt-a.createdAt);
       this.lastError = ''; this.paint();
-    } catch (error) { this.lastError = error instanceof Error ? error.message : String(error); this.paint(); }
+    } catch (error) {
+      this.lastError = error instanceof Error ? error.message : String(error);
+      if(this.lastError.includes('Faça login')){localStorage.removeItem('pixello-office-token');this.showAuth();return;}
+      this.paint();
+    }
   }
   private async submit(): Promise<void> {
     const instruction = this.input.value.trim(); if (!instruction || this.loading) return;
