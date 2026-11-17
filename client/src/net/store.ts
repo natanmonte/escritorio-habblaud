@@ -447,12 +447,15 @@ export class OfficeStore {
     try {
       const base = 'https://escritorio-ia-api.natanmonte1.workers.dev';
       const token = typeof localStorage !== 'undefined' ? localStorage.getItem('pixello-office-token') : null;
-      const headers = token ? { Authorization: 'Bearer ' + token } : {};
+      // A cena 2D só consulta a API depois do login no painel da equipe.
+      if (!token) { this.setConnection('connecting'); return; }
+      const headers = { Authorization: 'Bearer ' + token };
       const [agentsRes, tasksRes] = await Promise.all([
         fetch(base + '/api/agents', { cache: 'no-store', headers }),
         fetch(base + '/api/tasks', { cache: 'no-store', headers }),
       ]);
-      if (!agentsRes.ok || !tasksRes.ok) throw new Error('A equipe em nuvem não respondeu.');
+      if (agentsRes.status === 401 || tasksRes.status === 401) { this.setConnection('connecting'); return; }
+      if (!agentsRes.ok || !tasksRes.ok) throw new Error('Falha na conexão com a equipe em nuvem (' + agentsRes.status + '/' + tasksRes.status + ').');
       const staff = await agentsRes.json() as Array<{id:string;name:string;role:string;specialty:string}>;
       const tasks = await tasksRes.json() as Array<{id:string;agent_id:string;title:string;description:string;status:string;result?:string;error?:string;created_at:string;parent_id?:string;project_id?:string}>;
       const now = Date.now();
