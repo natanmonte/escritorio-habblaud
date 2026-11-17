@@ -200,7 +200,23 @@ export class StaffWorkspace implements UiComponent {
       this.field('Tom de voz da marca',data.brand_voice||'',true)
     ];
     const save=this.action('Salvar informações',async()=>{const keys=['name','description','segment','services','audience','differentials','website','instagram','brand_voice'];const payload:Record<string,string>={};keys.forEach((k,i)=>payload[k]=fields[i].control.value);await this.api('/api/company','POST',payload);this.notice.textContent='Informações da empresa salvas.';},'primary');
-    fields.forEach(x=>wrap.append(x.wrap));wrap.append(save);this.management.replaceChildren(wrap);
+    fields.forEach(x=>wrap.append(x.wrap));wrap.append(save);
+    const ai=await this.api('/api/ai-settings') as {provider:string;model:string;has_key:boolean};
+    const aiSection=node('section','staff-person');
+    aiSection.append(node('h3','','Inteligência artificial'),node('p','staff-help','Escolha qual serviço executa as tarefas dos funcionários. Ao pausar, novas tarefas ficam na fila e nenhuma chamada de IA é feita.'));
+    const provider=node('select','staff-select');
+    for(const [value,label] of [['cloudflare','Cloudflare Workers AI'],['mistral','Mistral AI (API externa)'],['off','Pausar uso de IA']] as const){const o=node('option','',label) as HTMLOptionElement;o.value=value;provider.append(o);}
+    provider.value=ai.provider||'cloudflare';
+    const model=this.field('Modelo Mistral',ai.model||'mistral-small-latest');
+    const key=this.field('Chave da API Mistral','');
+    (key.control as HTMLInputElement).type='password';(key.control as HTMLInputElement).autocomplete='new-password';(key.control as HTMLInputElement).placeholder=ai.has_key?'Chave salva. Deixe vazio para manter.':'Cole sua chave da API Mistral';
+    const status=node('p','staff-help',ai.has_key?'Chave Mistral cadastrada.':'Nenhuma chave Mistral cadastrada.');
+    const saveAI=this.action('Salvar configuração de IA',async()=>{
+      const payload:Record<string,string>={provider:provider.value,model:model.control.value.trim()||'mistral-small-latest'};
+      if(key.control.value.trim())payload.api_key=key.control.value.trim();
+      try{const result=await this.api('/api/ai-settings','POST',payload);status.textContent=result.has_key?'Configuração salva. Chave protegida e armazenada.':'Configuração salva.';key.control.value='';key.control.placeholder=result.has_key?'Chave salva. Deixe vazio para manter.':'Cole sua chave da API Mistral';this.notice.textContent=provider.value==='off'?'IA pausada. As tarefas permanecerão na fila.':'Configuração de IA atualizada.';}catch(e){status.textContent=e instanceof Error?e.message:String(e);}
+    },'primary');
+    aiSection.append(provider,model.wrap,key.wrap,status,saveAI);wrap.append(aiSection);this.management.replaceChildren(wrap);
   }
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
     const token=localStorage.getItem('pixello-office-token');
